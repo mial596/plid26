@@ -84,7 +84,6 @@ const solicitanteSchema = new mongoose.Schema({
   ultimaUsaEn: { type: Date }
 });
 
-solicitanteSchema.index({ apiKey: 1 });
 solicitanteSchema.index({ urlOrigen: 1 });
 
 const Registro = mongoose.model('Registro', registroSchema);
