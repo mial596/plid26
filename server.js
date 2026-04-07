@@ -98,11 +98,16 @@ async function registrarLog(data) {
 
 function verifyToken(req, res, next) {
   const auth = req.headers.authorization;
+  console.log('Auth header:', auth);
   if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+  const token = auth.slice(7);
+  console.log('Token:', token);
   try {
-    req.user = jwt.verify(auth.slice(7), JWT_SECRET);
+    req.user = jwt.verify(token, JWT_SECRET);
+    console.log('User:', req.user);
     next();
-  } catch {
+  } catch (err) {
+    console.log('JWT Error:', err.message);
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
