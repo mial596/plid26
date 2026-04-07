@@ -52,13 +52,15 @@ body::before {
   top: 0; left: 0; right: 0;
   background: var(--purple);
   z-index: 100;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: space-between;
   padding: 0 2.5rem;
   height: 56px;
   box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
 }
+
+.header.show { display: flex; }
 
 .header-brand {
   display: flex;
@@ -111,10 +113,18 @@ body::before {
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  padding-top: 56px;
+  padding-top: 0;
   display: flex;
   align-items: stretch;
 }
+
+.app.admin-mode {
+  padding-top: 56px;
+}
+
+.app.admin-mode .header { display: flex; }
+.app.admin-mode .sidebar { display: flex; }
+.app.admin-mode .main { margin-left: 220px; }
 
 /* ── SIDEBAR NAV ── */
 .sidebar {
@@ -126,7 +136,7 @@ body::before {
   top: 56px;
   left: 0;
   bottom: 0;
-  display: flex;
+  display: none;
   flex-direction: column;
   z-index: 50;
 }
@@ -170,54 +180,95 @@ body::before {
 
 /* ── MAIN CONTENT ── */
 .main {
-  margin-left: 220px;
+  margin-left: 0;
   flex: 1;
   padding: 2.5rem 3rem;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, var(--paper-warm) 0%, var(--purple-pale) 100%);
+}
+
+.app.admin-mode .main {
+  margin-left: 220px;
   min-height: calc(100vh - 56px);
+  display: block;
+  padding: 2.5rem 3rem;
+  background: var(--paper);
 }
 
 /* ── VIEWS ── */
 .view { display: none; }
 .view.active { display: block; animation: fadeIn 0.25s ease; }
+
+#view-login {
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.app.admin-mode #view-login {
+  display: none !important;
+}
+
+.app.admin-mode .view {
+  display: none;
+  padding: 0;
+}
+
+.app.admin-mode .view.active {
+  display: block;
+  padding: 0;
+  animation: fadeIn 0.25s ease;
+}
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ── PAGE TITLE ── */
 .page-header {
   margin-bottom: 2rem;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: none;
   padding-bottom: 1rem;
+  text-align: center;
 }
+
+#view-login .page-header {
+  border-bottom: none;
+  margin-bottom: 2.5rem;
+}
+
 .page-header h1 {
   font-family: var(--sans);
-  font-size: 1.7rem;
+  font-size: 2rem;
   font-weight: 800;
-  color: var(--blue);
+  color: var(--purple);
   letter-spacing: -0.03em;
 }
+
 .page-header p {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: var(--ink-soft);
-  margin-top: 0.3rem;
-  font-style: italic;
+  margin-top: 0.5rem;
+  font-weight: 500;
 }
 
 /* ── CARDS ── */
 .card {
   background: #fff;
   border: 1px solid var(--rule);
-  border-radius: 2px;
-  padding: 1.75rem;
+  border-radius: 12px;
+  padding: 2rem;
   margin-bottom: 1.5rem;
-  box-shadow: 2px 3px 0 var(--rule);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 .card-title {
   font-family: var(--sans);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: var(--blue);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 1.25rem;
+  color: var(--purple);
+  letter-spacing: 0.05em;
+  text-transform: capitalize;
+  margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -831,6 +882,12 @@ function showView(name) {
 }
 
 function setAdminUI(show) {
+  const app = document.querySelector('.app');
+  if (show) {
+    app.classList.add('admin-mode');
+  } else {
+    app.classList.remove('admin-mode');
+  }
   ['adminSection','nav-dashboard','nav-registros','nav-logs','nav-solicitantes','nav-logout'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = show ? '' : 'none';
