@@ -14,7 +14,7 @@ const { Registro, Log, Solicitante } = require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://user1:pass3@cluster0.m5bntoj.mongodb.net/?appName=Cluster0';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://malegre_db_user:gKHctbCg9KcYUrO8@cluster0.m5bntoj.mongodb.net/';
 const JWT_SECRET = process.env.JWT_SECRET || 'placetaid-dev-34567865432567346435236';
 const JWT_EXPIRY = '15m'; // Tokens de corta duración
 
@@ -52,15 +52,22 @@ app.use('/api/auth/', authLimiter);
 console.log('🔌 MongoDB connection attempt...');
 console.log('   MONGO_URI:', process.env.MONGO_URI ? `${process.env.MONGO_URI.substring(0, 40)}...` : 'NOT SET');
 
-mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://malegre_db_user:gKHctbCg9KcYUrO8@cluster0.m5bntoj.mongodb.net/', {
+mongoose.connect(MONGO_URI, {
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000
 })
-  .then(() => console.log(`✅ MongoDB conectado`))
+  .then(() => {
+    console.log(`✅ MongoDB conectado`);
+    // Start server only after successful DB connection
+    app.listen(PORT, () => {
+      console.log(`🚀 PlacetaID Gateway corriendo en http://localhost:${PORT}`);
+    });
+  })
   .catch(err => {
     console.error('❌ Error MongoDB:', err.message);
     console.error('   Code:', err.code);
     console.error('   Name:', err.name);
+    process.exit(1); // Exit if DB connection fails
   });
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -599,10 +606,6 @@ app.post('/api/setup/seed-admin', async (req, res) => {
 // ── SERVIR FRONTEND ───────────────────────────────────────────────────────────
 app.get('/{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 PlacetaID Gateway corriendo en http://localhost:${PORT}`);
 });
 
 module.exports = app;
