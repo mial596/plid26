@@ -15,8 +15,8 @@ const { Registro, Log, Solicitante } = require('./models');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://malegre_db_user:gKHctbCg9KcYUrO8@cluster0.m5bntoj.mongodb.net/';
-const JWT_SECRET = process.env.JWT_SECRET || 'placetaid-dev-34567865432567346435236';
-const JWT_EXPIRY = '15m'; // Tokens de corta duración
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const JWT_EXPIRY = '1h'; // Tokens de duración extendida para mejor usabilidad
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
