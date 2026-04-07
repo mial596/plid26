@@ -9,7 +9,8 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const path = require('path');
-const { Registro, Log } = require('./models');
+const crypto = require('crypto');
+const { Registro, Log, Solicitante } = require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -390,6 +391,77 @@ app.get('/api/admin/stats', verifyToken, requireAdmin, async (req, res) => {
     res.json({ total, bloqueados, activos, logsHoy, exitososHoy, erroresHoy });
   } catch (err) {
     res.status(500).json({ error: 'Error al obtener estadísticas' });
+  }
+});
+
+// ── API: GESTIÓN DE SOLICITANTES (ADMIN) ──────────────────────────────────────
+// Crear solicitante
+app.post('/api/admin/solicitantes', verifyToken, requireAdmin, async (req, res) => {
+  const { nombre, descripcion, urlOrigen } = req.body;
+  if (!nombre || !urlOrigen) return res.status(400).json({ error: 'Nombre y URL requeridos' });
+
+  try {
+    const apiKey = require('crypto').randomBytes(16).toString('hex');
+    const solicitante = await Solicitante.create({
+      nombre,
+      descripcion,
+      urlOrigen,
+      apiKey,
+      creadoPor: req.user.registroId
+    });
+    res.status(201).json({ ok: true, solicitante, apiKey });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Listar solicitantes
+app.get('/api/admin/solicitantes', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const solicitantes = await Solicitante.find({}, '-apiKey').sort({ creadoEn: -1 });
+    res.json(solicitantes);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener solicitantes' });
+  }
+});
+
+// Obtener solicitante con apiKey (para admin)
+app.get('/api/admin/solicitantes/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const solicitante = await Solicitante.findById(req.params.id);
+    if (!solicitante) return res.status(404).json({ error: 'Solicitante no encontrado' });
+    res.json(solicitante); // Incluye apiKey
+  } catch (err) {
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
+// Eliminar solicitante
+app.delete('/api/admin/solicitantes/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const solicitante = await Solicitante.findByIdAndDelete(req.params.id);
+    if (!solicitante) return res.status(404).json({ error: 'Solicitante no encontrado' });
+    res.json({ ok: true, mensaje: 'Solicitante eliminado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
+// Obtener info del solicitante en producción (validar por apiKey)
+app.get('/api/solicitante/info', async (req, res) => {
+  const key = req.headers['x-api-key'];
+  if (!key) return res.status(401).json({ error: 'API Key requerida' });
+
+  try {
+    const solicitante = await Solicitante.findOne({ apiKey: key, activo: true });
+    if (!solicitante) return res.status(401).json({ error: 'API Key inválida o inactiva' });
+    
+    solicitante.ultimaUsaEn = new Date();
+    await solicitante.save();
+    
+    res.json({ nombre: solicitante.nombre, apiKey: undefined });
+  } catch (err) {
+    res.status(500).json({ error: 'Error' });
   }
 });
 

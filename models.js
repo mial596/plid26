@@ -72,7 +72,23 @@ const logSchema = new mongoose.Schema({
 logSchema.index({ dip: 1, timestamp: -1 });
 logSchema.index({ timestamp: -1 });
 
+// ── SOLICITANTE (Aplicación/Servicio) ─────────────────────────────────────────
+const solicitanteSchema = new mongoose.Schema({
+  nombre: { type: String, required: true, trim: true },
+  descripcion: { type: String, trim: true },
+  urlOrigen: { type: String, required: true, trim: true }, // URL donde se usa
+  apiKey: { type: String, required: true, unique: true }, // Clave única para validar
+  activo: { type: Boolean, default: true },
+  creadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'Registro' }, // Admin que lo creó
+  creadoEn: { type: Date, default: Date.now },
+  ultimaUsaEn: { type: Date }
+});
+
+solicitanteSchema.index({ apiKey: 1 });
+solicitanteSchema.index({ urlOrigen: 1 });
+
 const Registro = mongoose.model('Registro', registroSchema);
 const Log = mongoose.model('Log', logSchema);
+const Solicitante = mongoose.model('Solicitante', solicitanteSchema);
 
-module.exports = { Registro, Log };
+module.exports = { Registro, Log, Solicitante };
