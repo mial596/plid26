@@ -1,0 +1,401 @@
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const path = require('path');
+const { Registro, Log } = require('./models');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/placetaid';
+const JWT_SECRET = process.env.JWT_SECRET || 'placetaid-dev-secret-change-in-production';
+const JWT_EXPIRY = '15m'; // Tokens de corta duración
+
+// ── MIDDLEWARE ────────────────────────────────────────────────────────────────
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Rate limiting global
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false });
+app.use('/api/', limiter);
+
+// Rate limiting estricto en autenticación
+const authLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 20, message: { error: 'Demasiados intentos. Espera 10 minutos.' } });
+app.use('/api/auth/', authLimiter);
+
+// ── MONGODB ───────────────────────────────────────────────────────────────────
+mongoose.connect(MONGO_URI)
+  .then(() => console.log(`✅ MongoDB conectado: ${MONGO_URI}`))
+  .catch(err => console.error('❌ Error MongoDB:', err));
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function getIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+}
+
+async function registrarLog(data) {
+  try {
+    await Log.create(data);
+  } catch (e) {
+    console.error('Error guardando log:', e);
+  }
+}
+
+function verifyToken(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+  try {
+    req.user = jwt.verify(auth.slice(7), JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+}
+
+function requireAdmin(req, res, next) {
+  if (req.user?.rol !== 'administrador') return res.status(403).json({ error: 'Acceso restringido a administradores' });
+  next();
+}
+
+// ── API: AUTENTICACIÓN ────────────────────────────────────────────────────────
+
+// FASE 1: DIP + Contraseña
+app.post('/api/auth/fase1', async (req, res) => {
+  const { dip, password, servicio, servicioUrl } = req.body;
+  if (!dip || !password) return res.status(400).json({ error: 'DIP y contraseña requeridos' });
+
+  const ip = getIP(req);
+  const ua = req.headers['user-agent'];
+  const svc = servicio || 'Desconocido';
+
+  try {
+    const registro = await Registro.findOne({ dip: dip.toUpperCase() });
+
+    if (!registro) {
+      await registrarLog({ dip: dip.toUpperCase(), servicio: svc, servicioUrl, evento: 'error_credenciales', ip, ua, fase: 'fase1' });
+      return res.status(401).json({ error: 'Credenciales incorrectas' });
+    }
+
+    if (registro.bloqueado) {
+      await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: svc, servicioUrl, evento: 'cuenta_bloqueada', ip, ua, fase: 'fase1' });
+      return res.status(403).json({ error: 'Cuenta bloqueada. Contacta con la Junta para el desbloqueo.', bloqueado: true });
+    }
+
+    if (!registro.activo) return res.status(403).json({ error: 'Registro inactivo' });
+
+    const valid = await bcrypt.compare(password, registro.passwordHash);
+
+    if (!valid) {
+      registro.intentosFallidos += 1;
+      const intentos = registro.intentosFallidos;
+
+      if (intentos >= 3) {
+        registro.bloqueado = true;
+        registro.ultimoBloqueo = new Date();
+        await registro.save();
+        await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: svc, servicioUrl, evento: 'bloqueo_activado', ip, ua, fase: 'fase1', intentoNumero: intentos });
+        return res.status(403).json({ error: 'Cuenta bloqueada tras 3 intentos fallidos. Contacta con la Junta.', bloqueado: true });
+      }
+
+      await registro.save();
+      await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: svc, servicioUrl, evento: 'error_credenciales', ip, ua, fase: 'fase1', intentoNumero: intentos });
+      return res.status(401).json({ error: 'Credenciales incorrectas', intentosRestantes: 3 - intentos });
+    }
+
+    // Fase 1 OK — emitir token temporal para fase 2
+    const tokenFase2 = jwt.sign(
+      { registroId: registro._id.toString(), dip: registro.dip, fase: 'fase2', servicio: svc, servicioUrl },
+      JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+
+    await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: svc, servicioUrl, evento: 'error_credenciales', ip, ua, fase: 'fase1',
+      metadatos: { resultado: 'fase1_ok' } });
+
+    // Registrar como info (no error) — reutilizamos el log con metadatos
+    // Sobreescribimos con evento correcto:
+    await Log.findOneAndUpdate(
+      { dip: registro.dip, 'metadatos.resultado': 'fase1_ok' },
+      { evento: 'intento_exitoso' },
+      { sort: { timestamp: -1 } }
+    );
+
+    res.json({ ok: true, tokenFase2, mensaje: 'Fase 1 correcta. Introduce el código 2FA.' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// FASE 2: Código 2FA
+app.post('/api/auth/fase2', async (req, res) => {
+  const { tokenFase2, codigo2fa } = req.body;
+  if (!tokenFase2 || !codigo2fa) return res.status(400).json({ error: 'Token y código 2FA requeridos' });
+
+  const ip = getIP(req);
+  const ua = req.headers['user-agent'];
+
+  let payload;
+  try {
+    payload = jwt.verify(tokenFase2, JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Token de fase 2 inválido o expirado. Reinicia el proceso.' });
+  }
+
+  if (payload.fase !== 'fase2') return res.status(400).json({ error: 'Token incorrecto para esta fase' });
+
+  try {
+    const registro = await Registro.findById(payload.registroId);
+    if (!registro) return res.status(404).json({ error: 'Registro no encontrado' });
+
+    if (registro.bloqueado) {
+      return res.status(403).json({ error: 'Cuenta bloqueada. Contacta con la Junta.', bloqueado: true });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: registro.totpSecret,
+      encoding: 'base32',
+      token: codigo2fa.replace(/\s/g, ''),
+      window: 1
+    });
+
+    if (!verified) {
+      registro.intentosFallidos += 1;
+      const intentos = registro.intentosFallidos;
+
+      if (intentos >= 3) {
+        registro.bloqueado = true;
+        registro.ultimoBloqueo = new Date();
+        await registro.save();
+        await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: payload.servicio, servicioUrl: payload.servicioUrl, evento: 'bloqueo_activado', ip, ua, fase: 'fase2', intentoNumero: intentos });
+        return res.status(403).json({ error: 'Cuenta bloqueada tras 3 intentos fallidos. Contacta con la Junta.', bloqueado: true });
+      }
+
+      await registro.save();
+      await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: payload.servicio, servicioUrl: payload.servicioUrl, evento: 'error_2fa', ip, ua, fase: 'fase2', intentoNumero: intentos });
+      return res.status(401).json({ error: 'Código 2FA incorrecto', intentosRestantes: 3 - intentos });
+    }
+
+    // AUTENTICACIÓN COMPLETA ✅
+    registro.intentosFallidos = 0;
+    registro.ultimoAcceso = new Date();
+    await registro.save();
+
+    await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: payload.servicio, servicioUrl: payload.servicioUrl, evento: 'intento_exitoso', ip, ua, fase: 'completa' });
+
+    // Token de sesión con datos del registro
+    const tokenSesion = jwt.sign(
+      { registroId: registro._id.toString(), dip: registro.dip, rol: registro.rol },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRY }
+    );
+
+    // Datos devueltos al servicio solicitante
+    const datosRegistro = {
+      dip: registro.dip,
+      nombre: registro.nombre,
+      apellidos: registro.apellidos,
+      nombreCompleto: `${registro.nombre} ${registro.apellidos}`,
+      edad: registro.edad,
+      rol: registro.rol
+    };
+
+    res.json({ ok: true, tokenSesion, registro: datosRegistro, servicio: payload.servicio });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ── API: REGISTRO DE NUEVO USUARIO ─────────────────────────────────────────
+app.post('/api/registro', async (req, res) => {
+  const { dip, nombre, apellidos, fechaNacimiento, rol, password } = req.body;
+  if (!dip || !nombre || !apellidos || !fechaNacimiento || !password) {
+    return res.status(400).json({ error: 'Todos los campos son requeridos' });
+  }
+
+  try {
+    const existe = await Registro.findOne({ dip: dip.toUpperCase() });
+    if (existe) return res.status(409).json({ error: 'El DIP ya está registrado' });
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const totp = speakeasy.generateSecret({ name: `PlacetaID:${dip.toUpperCase()}`, issuer: 'Grupo de La Placeta', length: 20 });
+
+    const registro = await Registro.create({
+      dip: dip.toUpperCase(),
+      nombre: nombre.trim(),
+      apellidos: apellidos.trim(),
+      fechaNacimiento: new Date(fechaNacimiento),
+      rol: rol || 'miembro',
+      passwordHash,
+      totpSecret: totp.base32,
+      totpVerified: false
+    });
+
+    await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: 'PlacetaID', evento: 'registro_creado', ip: getIP(req), ua: req.headers['user-agent'], fase: 'completa' });
+
+    const qrUrl = await QRCode.toDataURL(totp.otpauth_url);
+
+    res.status(201).json({
+      ok: true,
+      dip: registro.dip,
+      totpSecret: totp.base32,
+      qrCode: qrUrl,
+      mensaje: 'Registro creado. Escanea el QR con tu autenticador y verifica el primer código.'
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear el registro' });
+  }
+});
+
+// Verificar TOTP tras configuración inicial
+app.post('/api/registro/verificar-totp', async (req, res) => {
+  const { dip, codigo } = req.body;
+  try {
+    const registro = await Registro.findOne({ dip: dip?.toUpperCase() });
+    if (!registro) return res.status(404).json({ error: 'Registro no encontrado' });
+
+    const ok = speakeasy.totp.verify({ secret: registro.totpSecret, encoding: 'base32', token: codigo?.replace(/\s/g, ''), window: 1 });
+    if (!ok) return res.status(400).json({ error: 'Código incorrecto. Comprueba tu autenticador.' });
+
+    registro.totpVerified = true;
+    await registro.save();
+    await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: 'PlacetaID', evento: 'totp_configurado', ip: getIP(req), ua: req.headers['user-agent'] });
+
+    res.json({ ok: true, mensaje: 'Autenticador configurado correctamente. Ya puedes iniciar sesión.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al verificar' });
+  }
+});
+
+// ── API: PANEL JUNTA (ADMIN) ──────────────────────────────────────────────────
+
+// Login de admin (misma pasarela pero devuelve token admin)
+// El admin usa la pasarela normal.
+
+// Listar registros
+app.get('/api/admin/registros', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const registros = await Registro.find({}, '-passwordHash -totpSecret').sort({ creadoEn: -1 });
+    const result = registros.map(r => ({
+      ...r.toJSON(),
+      edad: r.edad
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener registros' });
+  }
+});
+
+// Desbloquear cuenta
+app.post('/api/admin/desbloquear/:dip', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const registro = await Registro.findOne({ dip: req.params.dip.toUpperCase() });
+    if (!registro) return res.status(404).json({ error: 'Registro no encontrado' });
+
+    registro.bloqueado = false;
+    registro.intentosFallidos = 0;
+    await registro.save();
+
+    await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: 'PlacetaID Admin', evento: 'desbloqueo', ip: getIP(req), ua: req.headers['user-agent'], metadatos: { desbloqueadoPor: req.user.dip } });
+
+    res.json({ ok: true, mensaje: `Registro ${registro.dip} desbloqueado correctamente` });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al desbloquear' });
+  }
+});
+
+// Activar/desactivar registro
+app.post('/api/admin/toggle/:dip', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const registro = await Registro.findOne({ dip: req.params.dip.toUpperCase() });
+    if (!registro) return res.status(404).json({ error: 'Registro no encontrado' });
+    registro.activo = !registro.activo;
+    await registro.save();
+    res.json({ ok: true, activo: registro.activo });
+  } catch (err) {
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
+// Logs con filtros
+app.get('/api/admin/logs', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { dip, evento, limit = 100, page = 1 } = req.query;
+    const filter = {};
+    if (dip) filter.dip = dip.toUpperCase();
+    if (evento) filter.evento = evento;
+
+    const logs = await Log.find(filter)
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    const total = await Log.countDocuments(filter);
+    res.json({ logs, total, page: parseInt(page), limit: parseInt(limit) });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener logs' });
+  }
+});
+
+// Stats del dashboard
+app.get('/api/admin/stats', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const [total, bloqueados, activos, logsHoy] = await Promise.all([
+      Registro.countDocuments(),
+      Registro.countDocuments({ bloqueado: true }),
+      Registro.countDocuments({ activo: true, bloqueado: false }),
+      Log.countDocuments({ timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } })
+    ]);
+    const exitososHoy = await Log.countDocuments({ evento: 'intento_exitoso', timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } });
+    const erroresHoy = await Log.countDocuments({ evento: { $in: ['error_credenciales', 'error_2fa'] }, timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } });
+    res.json({ total, bloqueados, activos, logsHoy, exitososHoy, erroresHoy });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener estadísticas' });
+  }
+});
+
+// ── SEED ADMIN (solo en desarrollo) ──────────────────────────────────────────
+app.post('/api/setup/seed-admin', async (req, res) => {
+  try {
+    const existe = await Registro.findOne({ dip: 'ADMIN-001' });
+    if (existe) return res.json({ ok: false, mensaje: 'El admin ya existe. DIP: ADMIN-001' });
+
+    const passwordHash = await bcrypt.hash('Admin1234!', 12);
+    const totp = speakeasy.generateSecret({ name: 'PlacetaID:ADMIN-001', issuer: 'Grupo de La Placeta', length: 20 });
+    const qrUrl = await QRCode.toDataURL(totp.otpauth_url);
+
+    await Registro.create({
+      dip: 'ADMIN-001', nombre: 'Administrador', apellidos: 'del Sistema',
+      fechaNacimiento: new Date('1990-01-01'), rol: 'administrador',
+      passwordHash, totpSecret: totp.base32, totpVerified: true
+    });
+
+    res.json({ ok: true, dip: 'ADMIN-001', password: 'Admin1234!', totpSecret: totp.base32, qrCode: qrUrl, mensaje: '⚠️ Admin creado. Guarda el secreto TOTP y elimina este endpoint en producción.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── SERVIR FRONTEND ───────────────────────────────────────────────────────────
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 PlacetaID Gateway corriendo en http://localhost:${PORT}`);
+});
+
+module.exports = app;

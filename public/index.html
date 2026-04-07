@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlacetaID — Pasarela de Identificación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0f1117;
+  --ink-soft: #2a2d38;
+  --paper: #f8f6f1;
+  --paper-warm: #f0ece3;
+  --rule: #d4cfc4;
+  --gold: #c9922a;
+  --gold-light: #e8b84b;
+  --gold-pale: #f5e9ce;
+  --blue: #1c3a6e;
+  --blue-mid: #2e5fa3;
+  --blue-pale: #dce8f5;
+  --red: #9b2020;
+  --green: #1a6a3a;
+  --green-pale: #d4edd9;
+  --mono: 'DM Mono', monospace;
+  --sans: 'Syne', sans-serif;
+  --serif: 'Lora', serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--serif);
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(180,170,150,0.12) 27px, rgba(180,170,150,0.12) 28px),
+    repeating-linear-gradient(90deg, transparent, transparent 27px, rgba(180,170,150,0.06) 27px, rgba(180,170,150,0.06) 28px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── HEADER ── */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: var(--blue);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.5rem;
+  height: 56px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+
+.header-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.header-brand .logo {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.header-brand .logo span {
+  color: var(--gold-light);
+}
+
+.header-brand .sub {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.6);
+}
+
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* ── LAYOUT ── */
+.app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding-top: 56px;
+  display: flex;
+  align-items: stretch;
+}
+
+/* ── SIDEBAR NAV ── */
+.sidebar {
+  width: 220px;
+  min-height: calc(100vh - 56px);
+  background: var(--ink);
+  padding: 2rem 0;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+}
+
+.sidebar-section {
+  padding: 0.5rem 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 1rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1.5rem;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+  user-select: none;
+}
+.nav-item:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.05); }
+.nav-item.active { color: var(--gold-light); border-left-color: var(--gold); background: rgba(201,146,42,0.1); }
+.nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 1rem 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.25);
+  line-height: 1.6;
+}
+
+/* ── MAIN CONTENT ── */
+.main {
+  margin-left: 220px;
+  flex: 1;
+  padding: 2.5rem 3rem;
+  min-height: calc(100vh - 56px);
+}
+
+/* ── VIEWS ── */
+.view { display: none; }
+.view.active { display: block; animation: fadeIn 0.25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── PAGE TITLE ── */
+.page-header {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+}
+.page-header h1 {
+  font-family: var(--sans);
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--blue);
+  letter-spacing: -0.03em;
+}
+.page-header p {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  margin-top: 0.3rem;
+  font-style: italic;
+}
+
+/* ── CARDS ── */
+.card {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 2px 3px 0 var(--rule);
+}
+.card-title {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--blue);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── STATS GRID ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.stat-card {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 2px 3px 0 var(--rule);
+}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: #888;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+.stat-value {
+  font-family: var(--sans);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--blue);
+  line-height: 1;
+}
+.stat-value.red { color: var(--red); }
+.stat-value.green { color: var(--green); }
+.stat-value.gold { color: var(--gold); }
+
+/* ── FORMS ── */
+.form-group { margin-bottom: 1.25rem; }
+.form-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+.form-input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: var(--paper);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+.form-input:focus {
+  border-color: var(--blue-mid);
+  box-shadow: 0 0 0 3px var(--blue-pale);
+  background: #fff;
+}
+.form-input.error { border-color: var(--red); }
+.form-input::placeholder { color: #bbb; }
+
+select.form-input { cursor: pointer; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.75rem;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 2px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.btn-primary {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 3px 3px 0 var(--ink-soft);
+}
+.btn-primary:hover { background: var(--blue-mid); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink-soft); }
+.btn-primary:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink-soft); }
+
+.btn-gold {
+  background: var(--gold);
+  color: #fff;
+  box-shadow: 3px 3px 0 #7a5010;
+}
+.btn-gold:hover { background: var(--gold-light); transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #7a5010; }
+
+.btn-danger {
+  background: var(--red);
+  color: #fff;
+  box-shadow: 3px 3px 0 #5a0f0f;
+}
+.btn-danger:hover { opacity: 0.85; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--blue);
+  border: 1.5px solid var(--blue);
+}
+.btn-ghost:hover { background: var(--blue-pale); }
+
+.btn-sm {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.72rem;
+}
+
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+.btn-full { width: 100%; }
+
+/* ── ALERTS ── */
+.alert {
+  padding: 0.85rem 1rem;
+  border-radius: 2px;
+  font-family: var(--serif);
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  border-left: 4px solid;
+}
+.alert-error { background: #fdf0f0; border-color: var(--red); color: var(--red); }
+.alert-success { background: var(--green-pale); border-color: var(--green); color: var(--green); }
+.alert-info { background: var(--blue-pale); border-color: var(--blue-mid); color: var(--blue); }
+.alert-warning { background: var(--gold-pale); border-color: var(--gold); color: #7a5010; }
+
+/* ── PROGRESS STEPS ── */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 2rem;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: #aaa;
+  flex: 1;
+}
+.step-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+.step.active .step-num { border-color: var(--blue-mid); background: var(--blue); color: #fff; }
+.step.done .step-num { border-color: var(--green); background: var(--green); color: #fff; }
+.step.active { color: var(--blue); }
+.step.done { color: var(--green); }
+.step-line { flex: 1; height: 2px; background: #e0e0e0; margin: 0 0.5rem; }
+.step.done + .step .step-line, .step.done .step-line { background: var(--green); }
+
+/* ── TABLES ── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.data-table th {
+  background: var(--ink);
+  color: rgba(255,255,255,0.8);
+  padding: 0.65rem 0.9rem;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+.data-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+.data-table tr:hover td { background: var(--paper-warm); }
+.data-table tr:last-child td { border-bottom: none; }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.badge-blue { background: var(--blue-pale); color: var(--blue); }
+.badge-green { background: var(--green-pale); color: var(--green); }
+.badge-red { background: #fde8e8; color: var(--red); }
+.badge-gold { background: var(--gold-pale); color: #7a5010; }
+.badge-gray { background: #eee; color: #666; }
+
+/* ── TOTP CODE INPUT ── */
+.totp-input {
+  font-family: var(--mono);
+  font-size: 1.8rem;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 0.3em;
+  padding: 0.85rem;
+  border: 2px solid var(--rule);
+  border-radius: 2px;
+  width: 100%;
+  background: var(--paper);
+  color: var(--blue);
+  transition: all 0.15s;
+}
+.totp-input:focus { border-color: var(--blue-mid); box-shadow: 0 0 0 3px var(--blue-pale); background: #fff; }
+
+/* ── QR CODE BOX ── */
+.qr-box {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--paper-warm);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  margin: 1rem 0;
+}
+.qr-box img { max-width: 200px; border: 8px solid white; }
+.qr-secret {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  background: #fff;
+  border: 1px solid var(--rule);
+  padding: 0.4rem 0.75rem;
+  border-radius: 2px;
+  display: inline-block;
+  margin-top: 0.75rem;
+  letter-spacing: 0.06em;
+  word-break: break-all;
+}
+
+/* ── LOG EVENTS ── */
+.log-event {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.log-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.log-dot.success { background: var(--green); }
+.log-dot.error { background: var(--red); }
+.log-dot.warning { background: var(--gold); }
+.log-dot.info { background: var(--blue-mid); }
+
+/* ── GATEWAY RESULT ── */
+.gateway-result {
+  background: var(--ink);
+  border-radius: 2px;
+  padding: 1.5rem;
+  color: #e0e0e0;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.8;
+  position: relative;
+  overflow: hidden;
+}
+.gateway-result::before {
+  content: '// PlacetaID → Servicio';
+  display: block;
+  color: rgba(255,255,255,0.25);
+  font-size: 0.68rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.05em;
+}
+.gateway-result .key { color: var(--gold-light); }
+.gateway-result .val { color: #9ecbff; }
+.gateway-result .val.string { color: #98c379; }
+
+/* ── TWO COLUMN ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+/* ── DIVIDER ── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 1.5rem 0;
+}
+
+/* ── SPIN ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 1.25rem; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .two-col { grid-template-columns: 1fr; }
+}
+
+/* ── INLINE LINK ── */
+.link { color: var(--blue-mid); cursor: pointer; text-decoration: underline; font-style: italic; }
+.link:hover { color: var(--blue); }
+
+/* ── MONOSPACE INFO ── */
+.mono-info {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  background: var(--paper-warm);
+  padding: 0.35rem 0.65rem;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+  display: inline-block;
+}
+
+.filter-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.filter-row .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #aaa;
+  font-style: italic;
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <div class="logo">Placeta<span>ID</span></div>
+    <div class="sub">Pasarela de Identificación · Grupo de La Placeta</div>
+  </div>
+  <div class="header-status">
+    <div class="status-dot"></div>
+    <span id="headerUser">Sistema activo</span>
+  </div>
+</header>
+
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-section">Autenticación</div>
+    <div class="nav-item active" onclick="showView('login')" id="nav-login">
+      <span class="icon">🔐</span> Iniciar Sesión
+    </div>
+    <div class="nav-item" onclick="showView('registro')" id="nav-registro">
+      <span class="icon">📋</span> Nuevo Registro
+    </div>
+
+    <div class="sidebar-section" id="adminSection" style="display:none">Panel Junta</div>
+    <div class="nav-item" onclick="showView('dashboard')" id="nav-dashboard" style="display:none">
+      <span class="icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showView('registros')" id="nav-registros" style="display:none">
+      <span class="icon">👥</span> Registros
+    </div>
+    <div class="nav-item" onclick="showView('logs')" id="nav-logs" style="display:none">
+      <span class="icon">📜</span> Logs
+    </div>
+
+    <div class="sidebar-section">Sistema</div>
+    <div class="nav-item" onclick="showView('setup')" id="nav-setup">
+      <span class="icon">⚙️</span> Configuración
+    </div>
+    <div class="nav-item" onclick="cerrarSesion()" id="nav-logout" style="display:none">
+      <span class="icon">🚪</span> Cerrar Sesión
+    </div>
+
+    <div class="sidebar-footer">
+      PlacetaID v1.0<br>
+      Ecosistema Grupo de La Placeta<br>
+      Confidencial — Uso interno
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ═══════════════════════════════════════════════════════════════ LOGIN -->
+    <div class="view active" id="view-login">
+      <div class="page-header">
+        <h1>Identificación PlacetaID</h1>
+        <p>Introduce tus credenciales para acceder al ecosistema</p>
+      </div>
+
+      <div style="max-width: 480px;">
+        <div class="steps">
+          <div class="step active" id="step1">
+            <div class="step-num" id="stepNum1">1</div>
+            <span>Credenciales</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" id="step2">
+            <div class="step-num" id="stepNum2">2</div>
+            <span>Verificación 2FA</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step" id="step3">
+            <div class="step-num" id="stepNum3">3</div>
+            <span>Acceso</span>
+          </div>
+        </div>
+
+        <div id="loginAlert"></div>
+
+        <!-- FASE 1 -->
+        <div class="card" id="fase1Panel">
+          <div class="card-title">⬡ Fase 1 — DIP + Contraseña</div>
+          <div class="form-group">
+            <label class="form-label">DIP (Documento de Identidad PlacetaID)</label>
+            <input class="form-input" id="loginDip" type="text" placeholder="Ej: ADMIN-001" autocomplete="off" style="text-transform:uppercase">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contraseña</label>
+            <input class="form-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Servicio solicitante (simulación)</label>
+            <input class="form-input" id="loginServicio" type="text" value="Portal Principal" placeholder="Nombre del servicio">
+          </div>
+          <button class="btn btn-primary btn-full" id="btnFase1" onclick="loginFase1()">
+            Verificar credenciales →
+          </button>
+          <p style="text-align:center;margin-top:1rem;font-size:0.82rem;color:#888;">
+            ¿Sin cuenta? <span class="link" onclick="showView('registro')">Crear nuevo registro</span>
+          </p>
+        </div>
+
+        <!-- FASE 2 -->
+        <div class="card" id="fase2Panel" style="display:none">
+          <div class="card-title">⬡ Fase 2 — Verificación 2FA</div>
+          <div class="alert alert-info">
+            Introduce el código de 6 dígitos de tu aplicación autenticadora.
+          </div>
+          <div class="form-group">
+            <label class="form-label">Código TOTP</label>
+            <input class="totp-input" id="login2fa" type="text" maxlength="7" placeholder="000 000" oninput="formatTotp(this)">
+          </div>
+          <button class="btn btn-primary btn-full" id="btnFase2" onclick="loginFase2()">
+            Verificar y acceder →
+          </button>
+          <button class="btn btn-ghost btn-full" style="margin-top:0.75rem;" onclick="resetLogin()">
+            ← Volver al inicio
+          </button>
+        </div>
+
+        <!-- RESULTADO -->
+        <div class="card" id="resultPanel" style="display:none">
+          <div class="card-title">✓ Identificación correcta</div>
+          <div class="alert alert-success" id="resultAlert"></div>
+          <div class="gateway-result" id="gatewayOutput"></div>
+          <div style="margin-top:1rem;display:flex;gap:0.75rem;">
+            <button class="btn btn-ghost" onclick="resetLogin()">Nueva sesión</button>
+            <button class="btn btn-primary" id="btnPanel" onclick="irAlPanel()" style="display:none">Ir al panel →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ REGISTRO -->
+    <div class="view" id="view-registro">
+      <div class="page-header">
+        <h1>Nuevo Registro</h1>
+        <p>Crear un nuevo registro en el ecosistema PlacetaID</p>
+      </div>
+
+      <div style="max-width:620px;">
+        <div id="regAlert"></div>
+        <div id="regForm">
+          <div class="card">
+            <div class="card-title">📋 Datos del Registro</div>
+            <div class="two-col">
+              <div class="form-group">
+                <label class="form-label">DIP *</label>
+                <input class="form-input" id="regDip" type="text" placeholder="Ej: MBR-0042" style="text-transform:uppercase">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Rol *</label>
+                <select class="form-input" id="regRol">
+                  <option value="miembro">Miembro</option>
+                  <option value="administrador">Administrador</option>
+                  <option value="moderador">Moderador</option>
+                  <option value="entidad">Entidad</option>
+                  <option value="visitante">Visitante</option>
+                </select>
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="form-group">
+                <label class="form-label">Nombre *</label>
+                <input class="form-input" id="regNombre" type="text" placeholder="Nombre">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Apellidos *</label>
+                <input class="form-input" id="regApellidos" type="text" placeholder="Apellido Apellido">
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="form-group">
+                <label class="form-label">Fecha de nacimiento *</label>
+                <input class="form-input" id="regFecha" type="date">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Contraseña *</label>
+                <input class="form-input" id="regPass" type="password" placeholder="Mín. 8 caracteres">
+              </div>
+            </div>
+            <button class="btn btn-primary btn-full" id="btnCrearReg" onclick="crearRegistro()">
+              Crear registro →
+            </button>
+          </div>
+        </div>
+
+        <!-- QR + Verificación TOTP -->
+        <div id="totpSetup" style="display:none">
+          <div class="card">
+            <div class="card-title">📱 Configurar Autenticador 2FA</div>
+            <div class="alert alert-warning">
+              <strong>Paso obligatorio.</strong> Escanea este QR con tu aplicación autenticadora (Google Authenticator, Authy, etc.) y luego verifica con el primer código generado.
+            </div>
+            <div class="qr-box">
+              <img id="qrImg" src="" alt="QR Code">
+              <br>
+              <span class="form-label" style="display:block;margin-top:0.75rem;">O introduce manualmente esta clave:</span>
+              <div class="qr-secret" id="totpSecretDisplay"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Código de verificación (6 dígitos)</label>
+              <input class="totp-input" id="verifyTotp" type="text" maxlength="7" placeholder="000 000" oninput="formatTotp(this)">
+            </div>
+            <button class="btn btn-gold btn-full" onclick="verificarTotp()">
+              Confirmar configuración →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ DASHBOARD -->
+    <div class="view" id="view-dashboard">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p>Estadísticas del sistema PlacetaID en tiempo real</p>
+      </div>
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-label">Total registros</div><div class="stat-value" id="statTotal">—</div></div>
+        <div class="stat-card"><div class="stat-label">Registros activos</div><div class="stat-value green" id="statActivos">—</div></div>
+        <div class="stat-card"><div class="stat-label">Cuentas bloqueadas</div><div class="stat-value red" id="statBloqueados">—</div></div>
+        <div class="stat-card"><div class="stat-label">Eventos (24h)</div><div class="stat-value gold" id="statLogs">—</div></div>
+        <div class="stat-card"><div class="stat-label">Accesos exitosos (24h)</div><div class="stat-value green" id="statExitosos">—</div></div>
+        <div class="stat-card"><div class="stat-label">Errores (24h)</div><div class="stat-value red" id="statErrores">—</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📜 Últimos eventos de autenticación</div>
+        <div id="logsPreview"><div class="empty-state">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ REGISTROS -->
+    <div class="view" id="view-registros">
+      <div class="page-header">
+        <h1>Gestión de Registros</h1>
+        <p>Panel de la Junta — gestión de cuentas del ecosistema</p>
+      </div>
+      <div class="card">
+        <div class="card-title">👥 Todos los registros</div>
+        <div id="regTableContainer"><div class="empty-state">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ LOGS -->
+    <div class="view" id="view-logs">
+      <div class="page-header">
+        <h1>Registro de Actividad</h1>
+        <p>Logs de autenticación — acceso restringido a la Junta</p>
+      </div>
+      <div class="filter-row">
+        <div class="form-group">
+          <label class="form-label">Filtrar por DIP</label>
+          <input class="form-input" id="filterDip" type="text" placeholder="Ej: ADMIN-001" style="text-transform:uppercase">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de evento</label>
+          <select class="form-input" id="filterEvento">
+            <option value="">Todos</option>
+            <option value="intento_exitoso">Exitoso</option>
+            <option value="error_credenciales">Error credenciales</option>
+            <option value="error_2fa">Error 2FA</option>
+            <option value="bloqueo_activado">Bloqueo</option>
+            <option value="desbloqueo">Desbloqueo</option>
+            <option value="registro_creado">Registro creado</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:0">
+          <label class="form-label">&nbsp;</label>
+          <button class="btn btn-primary" onclick="cargarLogs()">Filtrar</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="logsTableContainer"><div class="empty-state">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ SETUP -->
+    <div class="view" id="view-setup">
+      <div class="page-header">
+        <h1>Configuración del Sistema</h1>
+        <p>Herramientas de inicialización y diagnóstico</p>
+      </div>
+
+      <div style="max-width:560px;">
+        <div class="card">
+          <div class="card-title">⚙️ Inicializar Administrador</div>
+          <div class="alert alert-warning">
+            Crea el registro administrador inicial del sistema (DIP: <strong>ADMIN-001</strong>, contraseña: <strong>Admin1234!</strong>). Solo disponible si no existe. <strong>Elimina este endpoint en producción.</strong>
+          </div>
+          <div id="setupAlert"></div>
+          <div id="setupQr"></div>
+          <button class="btn btn-gold" onclick="seedAdmin()">Crear administrador →</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📡 Estado de la conexión</div>
+          <p style="font-family:var(--mono);font-size:0.8rem;color:#666;">
+            API: <span id="apiStatus" style="color:var(--green)">Conectado</span><br>
+            Base de datos: <span id="dbStatus">MongoDB</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── ESTADO ──────────────────────────────────────────────────────────────────
+const state = {
+  tokenFase2: null,
+  tokenSesion: null,
+  user: null,
+  dipRegistrando: null
+};
+
+// ── NAVEGACIÓN ───────────────────────────────────────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const v = document.getElementById('view-' + name);
+  if (v) v.classList.add('active');
+  const n = document.getElementById('nav-' + name);
+  if (n) n.classList.add('active');
+
+  if (name === 'dashboard') cargarDashboard();
+  if (name === 'registros') cargarRegistros();
+  if (name === 'logs') cargarLogs();
+}
+
+function setAdminUI(show) {
+  ['adminSection','nav-dashboard','nav-registros','nav-logs','nav-logout'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? '' : 'none';
+  });
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function formatTotp(el) {
+  let v = el.value.replace(/\D/g, '').slice(0, 6);
+  if (v.length > 3) v = v.slice(0,3) + ' ' + v.slice(3);
+  el.value = v;
+}
+
+function alert_(id, msg, type = 'error') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = msg ? `<div class="alert alert-${type}">${msg}</div>` : '';
+}
+
+function setBtn(id, loading, text) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.innerHTML = loading ? '<span class="spinner"></span>' : text;
+}
+
+function evtClass(evento) {
+  if (evento === 'intento_exitoso' || evento === 'totp_configurado' || evento === 'registro_creado' || evento === 'desbloqueo') return 'success';
+  if (evento === 'bloqueo_activado' || evento === 'cuenta_bloqueada') return 'error';
+  if (evento === 'error_credenciales' || evento === 'error_2fa') return 'warning';
+  return 'info';
+}
+
+function evtLabel(evento) {
+  const map = {
+    intento_exitoso: 'Acceso exitoso',
+    error_credenciales: 'Error credenciales',
+    error_2fa: 'Error 2FA',
+    bloqueo_activado: '🔒 Cuenta bloqueada',
+    cuenta_bloqueada: '🔒 Bloqueado (intento)',
+    desbloqueo: '🔓 Desbloqueado',
+    registro_creado: '+ Registro creado',
+    totp_configurado: '📱 TOTP configurado'
+  };
+  return map[evento] || evento;
+}
+
+async function apiFetch(url, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (state.tokenSesion) headers['Authorization'] = 'Bearer ' + state.tokenSesion;
+  const res = await fetch(url, { ...opts, headers });
+  const data = await res.json();
+  return { ok: res.ok, status: res.status, data };
+}
+
+// ── LOGIN FASE 1 ─────────────────────────────────────────────────────────────
+async function loginFase1() {
+  const dip = document.getElementById('loginDip').value.trim().toUpperCase();
+  const password = document.getElementById('loginPass').value;
+  const servicio = document.getElementById('loginServicio').value.trim() || 'Portal Principal';
+
+  if (!dip || !password) return alert_('loginAlert', 'Introduce DIP y contraseña.');
+
+  setBtn('btnFase1', true, '');
+  alert_('loginAlert', '');
+
+  const { ok, data } = await apiFetch('/api/auth/fase1', {
+    method: 'POST',
+    body: JSON.stringify({ dip, password, servicio })
+  });
+
+  setBtn('btnFase1', false, 'Verificar credenciales →');
+
+  if (!ok) {
+    const extra = data.intentosRestantes !== undefined
+      ? ` <strong>Intentos restantes: ${data.intentosRestantes}</strong>`
+      : '';
+    alert_('loginAlert', (data.error || 'Error desconocido') + extra, data.bloqueado ? 'warning' : 'error');
+    return;
+  }
+
+  state.tokenFase2 = data.tokenFase2;
+
+  // Avanzar a fase 2
+  document.getElementById('fase1Panel').style.display = 'none';
+  document.getElementById('fase2Panel').style.display = '';
+  document.getElementById('step1').classList.remove('active');
+  document.getElementById('step1').classList.add('done');
+  document.getElementById('stepNum1').textContent = '✓';
+  document.getElementById('step2').classList.add('active');
+  document.getElementById('login2fa').focus();
+}
+
+// ── LOGIN FASE 2 ─────────────────────────────────────────────────────────────
+async function loginFase2() {
+  const codigo2fa = document.getElementById('login2fa').value.replace(/\s/g, '');
+  if (codigo2fa.length !== 6) return alert_('loginAlert', 'Introduce un código de 6 dígitos.');
+
+  setBtn('btnFase2', true, '');
+  alert_('loginAlert', '');
+
+  const { ok, data } = await apiFetch('/api/auth/fase2', {
+    method: 'POST',
+    body: JSON.stringify({ tokenFase2: state.tokenFase2, codigo2fa })
+  });
+
+  setBtn('btnFase2', false, 'Verificar y acceder →');
+
+  if (!ok) {
+    const extra = data.intentosRestantes !== undefined
+      ? ` <strong>Intentos restantes: ${data.intentosRestantes}</strong>`
+      : '';
+    alert_('loginAlert', (data.error || 'Error') + extra, data.bloqueado ? 'warning' : 'error');
+    if (data.bloqueado) resetLogin();
+    return;
+  }
+
+  // ÉXITO
+  state.tokenSesion = data.tokenSesion;
+  state.user = data.registro;
+
+  document.getElementById('fase2Panel').style.display = 'none';
+  document.getElementById('step2').classList.remove('active');
+  document.getElementById('step2').classList.add('done');
+  document.getElementById('stepNum2').textContent = '✓';
+  document.getElementById('step3').classList.add('done');
+  document.getElementById('stepNum3').textContent = '✓';
+
+  const reg = data.registro;
+  document.getElementById('resultAlert').textContent =
+    `Bienvenido, ${reg.nombreCompleto}. Acceso concedido para «${data.servicio}».`;
+
+  document.getElementById('gatewayOutput').innerHTML = `
+    <div><span class="key">dip:</span>           <span class="val string">"${reg.dip}"</span></div>
+    <div><span class="key">nombre:</span>        <span class="val string">"${reg.nombre}"</span></div>
+    <div><span class="key">apellidos:</span>     <span class="val string">"${reg.apellidos}"</span></div>
+    <div><span class="key">nombreCompleto:</span><span class="val string">"${reg.nombreCompleto}"</span></div>
+    <div><span class="key">edad:</span>          <span class="val">${reg.edad}</span></div>
+    <div><span class="key">rol:</span>           <span class="val string">"${reg.rol}"</span></div>
+    <div><span class="key">servicio:</span>      <span class="val string">"${data.servicio}"</span></div>
+  `;
+
+  document.getElementById('resultPanel').style.display = '';
+
+  // Actualizar header
+  document.getElementById('headerUser').textContent = `${reg.dip} · ${reg.rol}`;
+
+  // Panel admin si procede
+  if (reg.rol === 'administrador') {
+    setAdminUI(true);
+    document.getElementById('btnPanel').style.display = '';
+    document.getElementById('nav-logout').style.display = '';
+  } else {
+    document.getElementById('nav-logout').style.display = '';
+  }
+}
+
+function irAlPanel() { showView('dashboard'); }
+
+function resetLogin() {
+  state.tokenFase2 = null;
+  document.getElementById('fase1Panel').style.display = '';
+  document.getElementById('fase2Panel').style.display = 'none';
+  document.getElementById('resultPanel').style.display = 'none';
+  document.getElementById('loginDip').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('login2fa').value = '';
+  alert_('loginAlert', '');
+  ['step1','step2','step3'].forEach(s => document.getElementById(s).classList.remove('active','done'));
+  document.getElementById('step1').classList.add('active');
+  ['stepNum1','stepNum2','stepNum3'].forEach((id,i) => document.getElementById(id).textContent = i+1);
+}
+
+function cerrarSesion() {
+  state.tokenSesion = null;
+  state.user = null;
+  state.tokenFase2 = null;
+  setAdminUI(false);
+  document.getElementById('nav-logout').style.display = 'none';
+  document.getElementById('headerUser').textContent = 'Sistema activo';
+  resetLogin();
+  showView('login');
+}
+
+// ── REGISTRO ─────────────────────────────────────────────────────────────────
+async function crearRegistro() {
+  const dip = document.getElementById('regDip').value.trim().toUpperCase();
+  const nombre = document.getElementById('regNombre').value.trim();
+  const apellidos = document.getElementById('regApellidos').value.trim();
+  const fechaNacimiento = document.getElementById('regFecha').value;
+  const rol = document.getElementById('regRol').value;
+  const password = document.getElementById('regPass').value;
+
+  if (!dip || !nombre || !apellidos || !fechaNacimiento || !password) {
+    return alert_('regAlert', 'Completa todos los campos obligatorios.');
+  }
+  if (password.length < 8) return alert_('regAlert', 'La contraseña debe tener al menos 8 caracteres.');
+
+  setBtn('btnCrearReg', true, '');
+  alert_('regAlert', '');
+
+  const { ok, data } = await apiFetch('/api/registro', {
+    method: 'POST',
+    body: JSON.stringify({ dip, nombre, apellidos, fechaNacimiento, rol, password })
+  });
+
+  setBtn('btnCrearReg', false, 'Crear registro →');
+
+  if (!ok) return alert_('regAlert', data.error || 'Error al crear el registro.');
+
+  state.dipRegistrando = data.dip;
+  document.getElementById('regForm').style.display = 'none';
+  document.getElementById('totpSetup').style.display = '';
+  document.getElementById('qrImg').src = data.qrCode;
+  document.getElementById('totpSecretDisplay').textContent = data.totpSecret;
+  alert_('regAlert', `Registro <strong>${data.dip}</strong> creado. Configura el autenticador.`, 'success');
+}
+
+async function verificarTotp() {
+  const codigo = document.getElementById('verifyTotp').value.replace(/\s/g, '');
+  if (codigo.length !== 6) return alert_('regAlert', 'Introduce el código de 6 dígitos de tu autenticador.');
+
+  const { ok, data } = await apiFetch('/api/registro/verificar-totp', {
+    method: 'POST',
+    body: JSON.stringify({ dip: state.dipRegistrando, codigo })
+  });
+
+  if (!ok) return alert_('regAlert', data.error || 'Error de verificación.', 'error');
+
+  alert_('regAlert', `✓ ${data.mensaje}`, 'success');
+  document.getElementById('totpSetup').style.display = 'none';
+  setTimeout(() => showView('login'), 2000);
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+async function cargarDashboard() {
+  const { ok, data } = await apiFetch('/api/admin/stats');
+  if (ok) {
+    document.getElementById('statTotal').textContent = data.total;
+    document.getElementById('statActivos').textContent = data.activos;
+    document.getElementById('statBloqueados').textContent = data.bloqueados;
+    document.getElementById('statLogs').textContent = data.logsHoy;
+    document.getElementById('statExitosos').textContent = data.exitososHoy;
+    document.getElementById('statErrores').textContent = data.erroresHoy;
+  }
+
+  const { ok: ok2, data: ld } = await apiFetch('/api/admin/logs?limit=10');
+  if (ok2) {
+    renderLogsTable(ld.logs, 'logsPreview', true);
+  }
+}
+
+// ── REGISTROS ────────────────────────────────────────────────────────────────
+async function cargarRegistros() {
+  const { ok, data } = await apiFetch('/api/admin/registros');
+  if (!ok) return document.getElementById('regTableContainer').innerHTML = '<div class="empty-state">Error al cargar</div>';
+
+  if (!data.length) {
+    document.getElementById('regTableContainer').innerHTML = '<div class="empty-state">No hay registros</div>';
+    return;
+  }
+
+  const rows = data.map(r => {
+    const rolBadge = { administrador: 'badge-red', miembro: 'badge-blue', moderador: 'badge-gold', entidad: 'badge-green', visitante: 'badge-gray' }[r.rol] || 'badge-gray';
+    return `<tr>
+      <td><span class="mono-info">${r.dip}</span></td>
+      <td>${r.nombre} ${r.apellidos}</td>
+      <td>${r.edad ?? '—'}</td>
+      <td><span class="badge ${rolBadge}">${r.rol}</span></td>
+      <td>${r.bloqueado ? '<span class="badge badge-red">Bloqueado</span>' : r.activo ? '<span class="badge badge-green">Activo</span>' : '<span class="badge badge-gray">Inactivo</span>'}</td>
+      <td>${r.intentosFallidos}</td>
+      <td>${r.ultimoAcceso ? new Date(r.ultimoAcceso).toLocaleString('es-ES') : '—'}</td>
+      <td style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+        ${r.bloqueado ? `<button class="btn btn-sm btn-gold" onclick="desbloquear('${r.dip}')">Desbloquear</button>` : ''}
+        <button class="btn btn-sm btn-ghost" onclick="toggleActivo('${r.dip}')">${r.activo ? 'Desactivar' : 'Activar'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('regTableContainer').innerHTML = `
+    <table class="data-table">
+      <thead><tr>
+        <th>DIP</th><th>Nombre</th><th>Edad</th><th>Rol</th><th>Estado</th><th>Fallos</th><th>Último acceso</th><th>Acciones</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function desbloquear(dip) {
+  if (!confirm(`¿Desbloquear el registro ${dip}?`)) return;
+  const { ok, data } = await apiFetch(`/api/admin/desbloquear/${dip}`, { method: 'POST' });
+  if (ok) cargarRegistros();
+  else alert(data.error);
+}
+
+async function toggleActivo(dip) {
+  const { ok } = await apiFetch(`/api/admin/toggle/${dip}`, { method: 'POST' });
+  if (ok) cargarRegistros();
+}
+
+// ── LOGS ─────────────────────────────────────────────────────────────────────
+async function cargarLogs() {
+  const dip = document.getElementById('filterDip')?.value.trim().toUpperCase() || '';
+  const evento = document.getElementById('filterEvento')?.value || '';
+  const params = new URLSearchParams({ limit: 100 });
+  if (dip) params.set('dip', dip);
+  if (evento) params.set('evento', evento);
+
+  const { ok, data } = await apiFetch('/api/admin/logs?' + params);
+  if (!ok) return document.getElementById('logsTableContainer').innerHTML = '<div class="empty-state">Error al cargar logs</div>';
+
+  renderLogsTable(data.logs, 'logsTableContainer', false);
+}
+
+function renderLogsTable(logs, containerId, compact) {
+  const el = document.getElementById(containerId);
+  if (!logs?.length) { el.innerHTML = '<div class="empty-state">Sin eventos</div>'; return; }
+
+  const rows = logs.map(l => `<tr>
+    <td><span class="mono-info" style="font-size:0.68rem;">${new Date(l.timestamp).toLocaleString('es-ES')}</span></td>
+    <td><span class="mono-info">${l.dip || '—'}</span></td>
+    ${compact ? '' : `<td>${l.servicio || '—'}</td>`}
+    <td>
+      <span class="log-event">
+        <span class="log-dot ${evtClass(l.evento)}"></span>
+        ${evtLabel(l.evento)}
+      </span>
+    </td>
+    ${compact ? '' : `<td><span class="badge badge-gray">${l.fase || '—'}</span></td>`}
+    ${compact ? '' : `<td style="font-family:var(--mono);font-size:0.7rem;color:#999;">${l.ip || '—'}</td>`}
+  </tr>`).join('');
+
+  el.innerHTML = `<table class="data-table">
+    <thead><tr>
+      <th>Timestamp</th><th>DIP</th>
+      ${compact ? '' : '<th>Servicio</th>'}
+      <th>Evento</th>
+      ${compact ? '' : '<th>Fase</th><th>IP</th>'}
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── SETUP ────────────────────────────────────────────────────────────────────
+async function seedAdmin() {
+  const { ok, data } = await apiFetch('/api/setup/seed-admin', { method: 'POST' });
+  alert_('setupAlert', data.mensaje || data.error, ok ? 'success' : 'info');
+
+  if (ok && data.qrCode) {
+    document.getElementById('setupQr').innerHTML = `
+      <div class="qr-box" style="margin-bottom:1rem;">
+        <p style="font-family:var(--mono);font-size:0.75rem;margin-bottom:0.75rem;">
+          DIP: <strong>ADMIN-001</strong> · Pass: <strong>Admin1234!</strong>
+        </p>
+        <img src="${data.qrCode}" alt="QR Admin">
+        <div class="qr-secret">${data.totpSecret}</div>
+        <p style="font-size:0.75rem;color:var(--red);margin-top:0.75rem;">⚠️ Escanea el QR con tu autenticador ahora. No se mostrará de nuevo.</p>
+      </div>`;
+  }
+}
+
+// ── ENTER KEY ────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (document.getElementById('fase1Panel').style.display !== 'none') loginFase1();
+  else if (document.getElementById('fase2Panel').style.display !== 'none') loginFase2();
+});
+</script>
+</body>
+</html>
