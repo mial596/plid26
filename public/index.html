@@ -1062,7 +1062,7 @@ textarea.form-input { resize: vertical; }
             <option value="error_credenciales">Error credenciales</option>
             <option value="error_2fa">Error 2FA</option>
             <option value="bloqueo_activado">Bloqueo</option>
-            <option value="desbloqueo">Desbloqueo</option>
+            <option value="desbloqueado">Desbloqueo</option>
             <option value="registro_creado">Registro creado</option>
           </select>
         </div>
@@ -1204,7 +1204,7 @@ function setBtn(id, loading, text) {
 }
 
 function evtClass(evento) {
-  if (evento === 'intento_exitoso' || evento === 'totp_configurado' || evento === 'registro_creado' || evento === 'desbloqueo') return 'success';
+  if (evento === 'intento_exitoso' || evento === 'totp_configurado' || evento === 'registro_creado' || evento === 'desbloqueo' || evento === 'desbloqueado') return 'success';
   if (evento === 'bloqueo_activado' || evento === 'cuenta_bloqueada') return 'error';
   if (evento === 'error_credenciales' || evento === 'error_2fa') return 'warning';
   return 'info';
@@ -1218,6 +1218,7 @@ function evtLabel(evento) {
     bloqueo_activado: '🔒 Cuenta bloqueada',
     cuenta_bloqueada: '🔒 Bloqueado (intento)',
     desbloqueo: '🔓 Desbloqueado',
+    desbloqueado: '🔓 Desbloqueado',
     registro_creado: '+ Registro creado',
     totp_configurado: '📱 TOTP configurado'
   };

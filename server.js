@@ -361,7 +361,7 @@ app.post('/api/admin/desbloquear/:dip', verifyToken, requireAdmin, async (req, r
     registro.intentosFallidos = 0;
     await registro.save();
 
-    await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: 'PlacetaID Admin', evento: 'desbloqueo', ip: getIP(req), ua: req.headers['user-agent'], metadatos: { desbloqueadoPor: req.user.dip } });
+    await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: 'PlacetaID Admin', evento: 'desbloqueado', ip: getIP(req), ua: req.headers['user-agent'], metadatos: { desbloqueadoPor: req.user.dip } });
 
     res.json({ ok: true, mensaje: `Registro ${registro.dip} desbloqueado correctamente` });
   } catch (err) {
