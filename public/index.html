@@ -5,33 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PlacetaID — Pasarela de Identificación</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --ink: #0f1117;
-  --ink-soft: #2a2d38;
-  --paper: #f8f6f1;
-  --paper-warm: #f0ece3;
-  --rule: #d4cfc4;
-  --gold: #c9922a;
-  --gold-light: #e8b84b;
-  --gold-pale: #f5e9ce;
-  --blue: #1c3a6e;
-  --blue-mid: #2e5fa3;
-  --blue-pale: #dce8f5;
-  --red: #9b2020;
-  --green: #1a6a3a;
-  --green-pale: #d4edd9;
-  --mono: 'DM Mono', monospace;
-  --sans: 'Syne', sans-serif;
-  --serif: 'Lora', serif;
+  --purple: #7c3aed;
+  --purple-dark: #6d28d9;
+  --purple-light: #a78bfa;
+  --purple-pale: #ede9fe;
+  --ink: #1f2937;
+  --ink-soft: #374151;
+  --paper: #ffffff;
+  --paper-warm: #f9fafb;
+  --rule: #e5e7eb;
+  --red: #ef4444;
+  --green: #10b981;
+  --green-pale: #d1fae5;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Outfit', sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: var(--serif);
-  background: var(--paper);
+  font-family: var(--sans);
+  background: var(--paper-warm);
   color: var(--ink);
   min-height: 100vh;
   overflow-x: hidden;
@@ -53,14 +50,14 @@ body::before {
 .header {
   position: fixed;
   top: 0; left: 0; right: 0;
-  background: var(--blue);
+  background: var(--purple);
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 2.5rem;
   height: 56px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
 }
 
 .header-brand {
@@ -78,7 +75,7 @@ body::before {
 }
 
 .header-brand .logo span {
-  color: var(--gold-light);
+  color: var(--purple-light);
 }
 
 .header-brand .sub {
@@ -309,19 +306,19 @@ select.form-input { cursor: pointer; }
   letter-spacing: 0.02em;
 }
 .btn-primary {
-  background: var(--blue);
+  background: var(--purple);
   color: #fff;
-  box-shadow: 3px 3px 0 var(--ink-soft);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
-.btn-primary:hover { background: var(--blue-mid); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink-soft); }
-.btn-primary:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink-soft); }
+.btn-primary:hover { background: var(--purple-dark); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4); }
+.btn-primary:active { transform: translateY(0); box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2); }
 
 .btn-gold {
-  background: var(--gold);
+  background: var(--purple);
   color: #fff;
-  box-shadow: 3px 3px 0 #7a5010;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
-.btn-gold:hover { background: var(--gold-light); transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #7a5010; }
+.btn-gold:hover { background: var(--purple-dark); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4); }
 
 .btn-danger {
   background: var(--red);
@@ -590,9 +587,6 @@ select.form-input { cursor: pointer; }
     <div class="nav-item active" onclick="showView('login')" id="nav-login">
       <span class="icon">🔐</span> Iniciar Sesión
     </div>
-    <div class="nav-item" onclick="showView('registro')" id="nav-registro">
-      <span class="icon">📋</span> Nuevo Registro
-    </div>
 
     <div class="sidebar-section" id="adminSection" style="display:none">Panel Junta</div>
     <div class="nav-item" onclick="showView('dashboard')" id="nav-dashboard" style="display:none">
@@ -608,10 +602,6 @@ select.form-input { cursor: pointer; }
       <span class="icon">🔗</span> Solicitantes
     </div>
 
-    <div class="sidebar-section">Sistema</div>
-    <div class="nav-item" onclick="showView('setup')" id="nav-setup">
-      <span class="icon">⚙️</span> Configuración
-    </div>
     <div class="nav-item" onclick="cerrarSesion()" id="nav-logout" style="display:none">
       <span class="icon">🚪</span> Cerrar Sesión
     </div>
@@ -670,9 +660,6 @@ select.form-input { cursor: pointer; }
           <button class="btn btn-primary btn-full" id="btnFase1" onclick="loginFase1()">
             Verificar credenciales →
           </button>
-          <p style="text-align:center;margin-top:1rem;font-size:0.82rem;color:#888;">
-            ¿Sin cuenta? <span class="link" onclick="showView('registro')">Crear nuevo registro</span>
-          </p>
         </div>
 
         <!-- FASE 2 -->
@@ -701,85 +688,6 @@ select.form-input { cursor: pointer; }
           <div style="margin-top:1rem;display:flex;gap:0.75rem;">
             <button class="btn btn-ghost" onclick="resetLogin()">Nueva sesión</button>
             <button class="btn btn-primary" id="btnPanel" onclick="irAlPanel()" style="display:none">Ir al panel →</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════════════════════ REGISTRO -->
-    <div class="view" id="view-registro">
-      <div class="page-header">
-        <h1>Nuevo Registro</h1>
-        <p>Crear un nuevo registro en el ecosistema PlacetaID</p>
-      </div>
-
-      <div style="max-width:620px;">
-        <div id="regAlert"></div>
-        <div id="regForm">
-          <div class="card">
-            <div class="card-title">📋 Datos del Registro</div>
-            <div class="two-col">
-              <div class="form-group">
-                <label class="form-label">DIP *</label>
-                <input class="form-input" id="regDip" type="text" placeholder="Ej: MBR-0042" style="text-transform:uppercase">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Rol *</label>
-                <select class="form-input" id="regRol">
-                  <option value="miembro">Miembro</option>
-                  <option value="administrador">Administrador</option>
-                  <option value="moderador">Moderador</option>
-                  <option value="entidad">Entidad</option>
-                  <option value="visitante">Visitante</option>
-                </select>
-              </div>
-            </div>
-            <div class="two-col">
-              <div class="form-group">
-                <label class="form-label">Nombre *</label>
-                <input class="form-input" id="regNombre" type="text" placeholder="Nombre">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Apellidos *</label>
-                <input class="form-input" id="regApellidos" type="text" placeholder="Apellido Apellido">
-              </div>
-            </div>
-            <div class="two-col">
-              <div class="form-group">
-                <label class="form-label">Fecha de nacimiento *</label>
-                <input class="form-input" id="regFecha" type="date">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Contraseña *</label>
-                <input class="form-input" id="regPass" type="password" placeholder="Mín. 8 caracteres">
-              </div>
-            </div>
-            <button class="btn btn-primary btn-full" id="btnCrearReg" onclick="crearRegistro()">
-              Crear registro →
-            </button>
-          </div>
-        </div>
-
-        <!-- QR + Verificación TOTP -->
-        <div id="totpSetup" style="display:none">
-          <div class="card">
-            <div class="card-title">📱 Configurar Autenticador 2FA</div>
-            <div class="alert alert-warning">
-              <strong>Paso obligatorio.</strong> Escanea este QR con tu aplicación autenticadora (Google Authenticator, Authy, etc.) y luego verifica con el primer código generado.
-            </div>
-            <div class="qr-box">
-              <img id="qrImg" src="" alt="QR Code">
-              <br>
-              <span class="form-label" style="display:block;margin-top:0.75rem;">O introduce manualmente esta clave:</span>
-              <div class="qr-secret" id="totpSecretDisplay"></div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Código de verificación (6 dígitos)</label>
-              <input class="totp-input" id="verifyTotp" type="text" maxlength="7" placeholder="000 000" oninput="formatTotp(this)">
-            </div>
-            <button class="btn btn-gold btn-full" onclick="verificarTotp()">
-              Confirmar configuración →
-            </button>
           </div>
         </div>
       </div>
@@ -893,31 +801,6 @@ select.form-input { cursor: pointer; }
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════ SETUP -->
-    <div class="view" id="view-setup">
-      <div class="page-header">
-        <h1>Configuración del Sistema</h1>
-        <p>Herramientas de inicialización y diagnóstico</p>
-      </div>
-
-      <div style="max-width:560px;">
-        <div class="card">
-          <div class="card-title">⚙️ Inicializar Administrador</div>
-          <div class="alert alert-warning">
-            Crea el registro administrador inicial del sistema (DIP: <strong>ADMIN-001</strong>, contraseña: <strong>Admin1234!</strong>). Solo disponible si no existe. <strong>Elimina este endpoint en producción.</strong>
-          </div>
-          <div id="setupAlert"></div>
-          <div id="setupQr"></div>
-          <button class="btn btn-gold" onclick="seedAdmin()">Crear administrador →</button>
-        </div>
-
-        <div class="card">
-          <div class="card-title">📡 Estado de la conexión</div>
-          <p style="font-family:var(--mono);font-size:0.8rem;color:#666;">
-            API: <span id="apiStatus" style="color:var(--green)">Conectado</span><br>
-            Base de datos: <span id="dbStatus">MongoDB</span>
-          </p>
-        </div>
-      </div>
     </div>
 
   </main>
@@ -1133,55 +1016,6 @@ function cerrarSesion() {
 }
 
 // ── REGISTRO ─────────────────────────────────────────────────────────────────
-async function crearRegistro() {
-  const dip = document.getElementById('regDip').value.trim().toUpperCase();
-  const nombre = document.getElementById('regNombre').value.trim();
-  const apellidos = document.getElementById('regApellidos').value.trim();
-  const fechaNacimiento = document.getElementById('regFecha').value;
-  const rol = document.getElementById('regRol').value;
-  const password = document.getElementById('regPass').value;
-
-  if (!dip || !nombre || !apellidos || !fechaNacimiento || !password) {
-    return alert_('regAlert', 'Completa todos los campos obligatorios.');
-  }
-  if (password.length < 8) return alert_('regAlert', 'La contraseña debe tener al menos 8 caracteres.');
-
-  setBtn('btnCrearReg', true, '');
-  alert_('regAlert', '');
-
-  const { ok, data } = await apiFetch('/api/registro', {
-    method: 'POST',
-    body: JSON.stringify({ dip, nombre, apellidos, fechaNacimiento, rol, password })
-  });
-
-  setBtn('btnCrearReg', false, 'Crear registro →');
-
-  if (!ok) return alert_('regAlert', data.error || 'Error al crear el registro.');
-
-  state.dipRegistrando = data.dip;
-  document.getElementById('regForm').style.display = 'none';
-  document.getElementById('totpSetup').style.display = '';
-  document.getElementById('qrImg').src = data.qrCode;
-  document.getElementById('totpSecretDisplay').textContent = data.totpSecret;
-  alert_('regAlert', `Registro <strong>${data.dip}</strong> creado. Configura el autenticador.`, 'success');
-}
-
-async function verificarTotp() {
-  const codigo = document.getElementById('verifyTotp').value.replace(/\s/g, '');
-  if (codigo.length !== 6) return alert_('regAlert', 'Introduce el código de 6 dígitos de tu autenticador.');
-
-  const { ok, data } = await apiFetch('/api/registro/verificar-totp', {
-    method: 'POST',
-    body: JSON.stringify({ dip: state.dipRegistrando, codigo })
-  });
-
-  if (!ok) return alert_('regAlert', data.error || 'Error de verificación.', 'error');
-
-  alert_('regAlert', `✓ ${data.mensaje}`, 'success');
-  document.getElementById('totpSetup').style.display = 'none';
-  setTimeout(() => showView('login'), 2000);
-}
-
 // ── DASHBOARD ────────────────────────────────────────────────────────────────
 async function cargarDashboard() {
   const { ok, data } = await apiFetch('/api/admin/stats');
@@ -1289,24 +1123,6 @@ function renderLogsTable(logs, containerId, compact) {
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
-}
-
-// ── SETUP ────────────────────────────────────────────────────────────────────
-async function seedAdmin() {
-  const { ok, data } = await apiFetch('/api/setup/seed-admin', { method: 'POST' });
-  alert_('setupAlert', data.mensaje || data.error, ok ? 'success' : 'info');
-
-  if (ok && data.qrCode) {
-    document.getElementById('setupQr').innerHTML = `
-      <div class="qr-box" style="margin-bottom:1rem;">
-        <p style="font-family:var(--mono);font-size:0.75rem;margin-bottom:0.75rem;">
-          DIP: <strong>ADMIN-001</strong> · Pass: <strong>Admin1234!</strong>
-        </p>
-        <img src="${data.qrCode}" alt="QR Admin">
-        <div class="qr-secret">${data.totpSecret}</div>
-        <p style="font-size:0.75rem;color:var(--red);margin-top:0.75rem;">⚠️ Escanea el QR con tu autenticador ahora. No se mostrará de nuevo.</p>
-      </div>`;
-  }
 }
 
 // ── ENTER KEY ────────────────────────────────────────────────────────────────
