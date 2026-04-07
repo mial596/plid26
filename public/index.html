@@ -1124,11 +1124,17 @@ textarea.form-input { resize: vertical; }
 <script>
 // ── ESTADO ────────────────────────────────────────────────────────────────────
 const state = {
-  tokenFase2: null,
-  tokenSesion: null,
-  user: null,
+  tokenFase2: localStorage.getItem('tokenFase2') || null,
+  tokenSesion: localStorage.getItem('tokenSesion') || null,
+  user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null,
   dipRegistrando: null
 };
+
+// Inicializar UI si hay sesión
+if (state.tokenSesion) {
+  setAdminUI(true);
+  showView('dashboard');
+}
 
 // ── NAVEGACIÓN ────────────────────────────────────────────────────────────────
 function showView(name) {
@@ -1233,6 +1239,7 @@ async function loginFase1() {
   }
 
   state.tokenFase2 = data.tokenFase2;
+  localStorage.setItem('tokenFase2', data.tokenFase2);
 
   document.getElementById('fase1Panel').style.display = 'none';
   document.getElementById('fase2Panel').style.display = '';
@@ -1268,6 +1275,8 @@ async function loginFase2() {
 
   state.tokenSesion = data.tokenSesion;
   state.user = data.registro;
+  localStorage.setItem('tokenSesion', data.tokenSesion);
+  localStorage.setItem('user', JSON.stringify(data.registro));
 
   document.getElementById('fase2Panel').style.display = 'none';
   document.getElementById('step2').classList.remove('active');
@@ -1322,6 +1331,9 @@ function cerrarSesion() {
   state.tokenSesion = null;
   state.user = null;
   state.tokenFase2 = null;
+  localStorage.removeItem('tokenSesion');
+  localStorage.removeItem('user');
+  localStorage.removeItem('tokenFase2');
   setAdminUI(false);
   document.getElementById('nav-logout').style.display = 'none';
   document.getElementById('headerUser').textContent = 'Sistema activo';
@@ -1457,7 +1469,7 @@ async function crearSolicitante() {
     return;
   }
 
-  const token = localStorage.getItem('placetaidToken');
+  const token = localStorage.getItem('tokenSesion');
   const res = await fetch('/api/admin/solicitantes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -1478,7 +1490,7 @@ async function crearSolicitante() {
 }
 
 async function cargarSolicitantes() {
-  const token = localStorage.getItem('placetaidToken');
+  const token = localStorage.getItem('tokenSesion');
   const res = await fetch('/api/admin/solicitantes', {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -1507,7 +1519,7 @@ async function cargarSolicitantes() {
 }
 
 async function verInstrucciones(id) {
-  const token = localStorage.getItem('placetaidToken');
+  const token = localStorage.getItem('tokenSesion');
   const res = await fetch(`/api/admin/solicitantes/${id}/instrucciones`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -1550,7 +1562,7 @@ async function verInstrucciones(id) {
 async function eliminarSolicitante(id) {
   if (!confirm('¿Eliminar este solicitante? Se descontinuará el acceso a sus aplicaciones.')) return;
 
-  const token = localStorage.getItem('placetaidToken');
+  const token = localStorage.getItem('tokenSesion');
   const res = await fetch(`/api/admin/solicitantes/${id}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
