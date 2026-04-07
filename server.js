@@ -533,7 +533,7 @@ Copia el código anterior en tu página web donde desees el botón de login.
 - Tras la autenticación, PlacetaID redirige de vuelta a la URL indicada en el parámetro \`from\`.
 
 ### 3. Capturar el callback
-```javascript
+\`\`\`javascript
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
 const user = params.get('user');
@@ -544,24 +544,24 @@ if (token && user) {
   const usuario = JSON.parse(decodeURIComponent(user));
   console.log('Usuario autenticado:', usuario);
 }
-```
+\`\`\`
 
 ### 4. Validación
 Para obtener información del solicitante desde tu servidor usa el endpoint de PlacetaID:
 
-```javascript
+\`\`\`javascript
 fetch('${baseUrl}/api/solicitante/info', {
   headers: { 'X-API-Key': '${solicitante.apiKey}' }
 })
 .then(r => r.json())
 .then(data => console.log(data));
-```
+\`\`\`
 
 ### 5. Notas
 - El token expira en 1 hora.
 - El parámetro \`from\` debe ser una URL segura (HTTPS).
 - No uses la API Key en frontend para el login.
-
+`
     };
 
     res.json(instrucciones);
@@ -600,12 +600,16 @@ app.post('/api/setup/seed-admin', async (req, res) => {
 });
 
 // ── SERVIR FRONTEND ───────────────────────────────────────────────────────────
-app.get('/{*path}', (req, res) => {
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // ── INICIAR SERVIDOR ──────────────────────────────────────────────────────────
-mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(MONGO_URI)
   .then(() => {
     console.log('✅ Conectado a MongoDB');
     app.listen(PORT, () => {
