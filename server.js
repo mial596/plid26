@@ -49,26 +49,39 @@ const authLimiter = rateLimit({
 app.use('/api/auth/', authLimiter);
 
 // ── MONGODB ───────────────────────────────────────────────────────────────────
-console.log('🔌 MongoDB connection attempt...');
-console.log('   MONGO_URI:', process.env.MONGO_URI ? `${process.env.MONGO_URI.substring(0, 40)}...` : 'NOT SET');
+let isConnected = false;
 
-mongoose.connect(MONGO_URI, {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000
-})
-  .then(() => {
-    console.log(`✅ MongoDB conectado`);
-    // Start server only after successful DB connection
-    app.listen(PORT, () => {
-      console.log(`🚀 PlacetaID Gateway corriendo en http://localhost:${PORT}`);
+async function connectToDatabase() {
+  if (isConnected) return;
+
+  try {
+    console.log('🔌 MongoDB connection attempt...');
+    console.log('   MONGO_URI:', process.env.MONGO_URI ? `${process.env.MONGO_URI.substring(0, 40)}...` : 'NOT SET');
+
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000
     });
-  })
-  .catch(err => {
+
+    isConnected = true;
+    console.log(`✅ MongoDB conectado`);
+  } catch (err) {
     console.error('❌ Error MongoDB:', err.message);
     console.error('   Code:', err.code);
     console.error('   Name:', err.name);
-    process.exit(1); // Exit if DB connection fails
-  });
+    throw err;
+  }
+}
+
+// Middleware to ensure DB connection
+app.use(async (req, res, next) => {
+  try {
+    await connectToDatabase();
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function getIP(req) {
