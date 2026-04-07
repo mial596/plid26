@@ -13,8 +13,8 @@ const { Registro, Log } = require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/placetaid';
-const JWT_SECRET = process.env.JWT_SECRET || 'placetaid-dev-secret-change-in-production';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://malegre_db_user:gKHctbCg9KcYUrO8@cluster0.m5bntoj.mongodb.net/';
+const JWT_SECRET = process.env.JWT_SECRET || 'placetaid-dev-34567865432567346435236';
 const JWT_EXPIRY = '15m'; // Tokens de corta duración
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
@@ -390,7 +390,7 @@ app.post('/api/setup/seed-admin', async (req, res) => {
 });
 
 // ── SERVIR FRONTEND ───────────────────────────────────────────────────────────
-app.get('*', (req, res) => {
+app.get('/{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
