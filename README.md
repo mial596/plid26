@@ -2,6 +2,12 @@
 
 Sistema de autenticación centralizado para el ecosistema Grupo de La Placeta.
 
+## 🔗 Integración de Solicitantes
+
+¿Quieres integrar PlacetaID en tu aplicación? Lee la **[Guía de Integración](./INTEGRACION_SOLICITANTES.md)**.
+
+👉 [Ver ejemplo de funcionamiento](./public/ejemplo-integracion.html)
+
 ## Requisitos
 
 - Node.js 18+
