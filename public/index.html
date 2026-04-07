@@ -931,6 +931,7 @@ textarea.form-input { resize: vertical; }
 
         <!-- Fase 1 -->
         <div class="glass-card" id="fase1Panel">
+          <div id="solicitanteAlert"></div>
           <div class="card-title">
             <span class="card-title-dot"></span>
             Fase 1 — Credenciales
@@ -1123,15 +1124,33 @@ textarea.form-input { resize: vertical; }
 
 <script>
 // ── ESTADO ────────────────────────────────────────────────────────────────────
+const urlParams = new URLSearchParams(window.location.search);
+const redirectUrl = urlParams.get('from') || null; // URL donde redirigir después del login
+
 const state = {
   tokenFase2: localStorage.getItem('tokenFase2') || null,
   tokenSesion: localStorage.getItem('tokenSesion') || null,
   user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null,
-  dipRegistrando: null
+  dipRegistrando: null,
+  redirectUrl: redirectUrl
 };
 
+// Mostrar mensaje si estamos siendo llamados desde un solicitante
+if (redirectUrl) {
+  console.log('🔗 Solicitante detectado:', redirectUrl);
+  const domainMatch = redirectUrl.match(/https?:\/\/([^/]+)/);
+  const domain = domainMatch ? domainMatch[1] : 'Aplicación externa';
+  const alertHTML = `<div class="alert alert-info">🔗 <strong>${domain}</strong> solicita tu identificación. Completa el proceso para continuar.</div>`;
+  
+  // Mostrar el alert cuando el documento esté listo
+  setTimeout(() => {
+    const alertContainer = document.getElementById('solicitanteAlert');
+    if (alertContainer) alertContainer.innerHTML = alertHTML;
+  }, 100);
+}
+
 // Inicializar UI si hay sesión
-if (state.tokenSesion) {
+if (state.tokenSesion && !redirectUrl) {
   setAdminUI(true);
   showView('dashboard');
 }
@@ -1277,6 +1296,15 @@ async function loginFase2() {
   state.user = data.registro;
   localStorage.setItem('tokenSesion', data.tokenSesion);
   localStorage.setItem('user', JSON.stringify(data.registro));
+
+  // Si hay URL de redirección, redirigir al solicitante con el token
+  if (state.redirectUrl) {
+    const redirectUri = new URL(state.redirectUrl);
+    redirectUri.searchParams.append('token', data.tokenSesion);
+    redirectUri.searchParams.append('user', JSON.stringify(data.registro));
+    window.location.href = redirectUri.toString();
+    return;
+  }
 
   document.getElementById('fase2Panel').style.display = 'none';
   document.getElementById('step2').classList.remove('active');
