@@ -23,12 +23,28 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Helper para obtener IP en producción
+const getClientIP = (req) => {
+  return req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+};
+
 // Rate limiting global
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false });
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientIP
+});
 app.use('/api/', limiter);
 
 // Rate limiting estricto en autenticación
-const authLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 20, message: { error: 'Demasiados intentos. Espera 10 minutos.' } });
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  message: { error: 'Demasiados intentos. Espera 10 minutos.' },
+  keyGenerator: getClientIP
+});
 app.use('/api/auth/', authLimiter);
 
 // ── MONGODB ───────────────────────────────────────────────────────────────────
@@ -38,7 +54,7 @@ mongoose.connect(MONGO_URI)
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function getIP(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+  return getClientIP(req);
 }
 
 async function registrarLog(data) {
@@ -370,8 +386,13 @@ app.get('/api/admin/stats', verifyToken, requireAdmin, async (req, res) => {
 // ── SEED ADMIN (solo en desarrollo) ──────────────────────────────────────────
 app.post('/api/setup/seed-admin', async (req, res) => {
   try {
+    console.log('🔧 POST /api/setup/seed-admin - Chequeando DB connection...');
+    
     const existe = await Registro.findOne({ dip: 'ADMIN-001' });
-    if (existe) return res.json({ ok: false, mensaje: 'El admin ya existe. DIP: ADMIN-001' });
+    if (existe) {
+      console.log('✓ Admin ya existe');
+      return res.json({ ok: false, mensaje: 'El admin ya existe. DIP: ADMIN-001' });
+    }
 
     const passwordHash = await bcrypt.hash('Admin1234!', 12);
     const totp = speakeasy.generateSecret({ name: 'PlacetaID:ADMIN-001', issuer: 'Grupo de La Placeta', length: 20 });
@@ -383,9 +404,11 @@ app.post('/api/setup/seed-admin', async (req, res) => {
       passwordHash, totpSecret: totp.base32, totpVerified: true
     });
 
+    console.log('✓ Admin creado exitosamente');
     res.json({ ok: true, dip: 'ADMIN-001', password: 'Admin1234!', totpSecret: totp.base32, qrCode: qrUrl, mensaje: '⚠️ Admin creado. Guarda el secreto TOTP y elimina este endpoint en producción.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error en seed-admin:', err.message, err.code);
+    res.status(500).json({ error: err.message, code: err.code });
   }
 });
 
