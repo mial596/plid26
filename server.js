@@ -48,9 +48,19 @@ const authLimiter = rateLimit({
 app.use('/api/auth/', authLimiter);
 
 // ── MONGODB ───────────────────────────────────────────────────────────────────
-mongoose.connect(MONGO_URI)
-  .then(() => console.log(`✅ MongoDB conectado: ${MONGO_URI}`))
-  .catch(err => console.error('❌ Error MongoDB:', err));
+console.log('🔌 MongoDB connection attempt...');
+console.log('   MONGO_URI:', process.env.MONGO_URI ? `${process.env.MONGO_URI.substring(0, 40)}...` : 'NOT SET');
+
+mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://malegre_db_user:gKHctbCg9KcYUrO8@cluster0.m5bntoj.mongodb.net/', {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000
+})
+  .then(() => console.log(`✅ MongoDB conectado`))
+  .catch(err => {
+    console.error('❌ Error MongoDB:', err.message);
+    console.error('   Code:', err.code);
+    console.error('   Name:', err.name);
+  });
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function getIP(req) {
