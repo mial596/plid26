@@ -465,6 +465,108 @@ app.get('/api/solicitante/info', async (req, res) => {
   }
 });
 
+// Obtener instrucciones de implementación (admin)
+app.get('/api/admin/solicitantes/:id/instrucciones', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const solicitante = await Solicitante.findById(req.params.id);
+    if (!solicitante) return res.status(404).json({ error: 'Solicitante no encontrado' });
+
+    const baseUrl = process.env.BASE_URL || 'https://plid26.vercel.app';
+    const instrucciones = {
+      nombre: solicitante.nombre,
+      apiKey: solicitante.apiKey,
+      urlOrigen: solicitante.urlOrigen,
+      basePath: baseUrl,
+      html: `
+<!-- PlacetaID Integration -->
+<button id="placetaidLoginBtn" style="padding: 10px 20px; background: #7c3aed; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+  Iniciar sesión con PlacetaID
+</button>
+
+<script>
+const PLACETAID_CONFIG = {
+  baseUrl: '${baseUrl}',
+  apiKey: '${solicitante.apiKey}',
+  serviceName: '${solicitante.nombre}'
+};
+
+document.getElementById('placetaidLoginBtn').addEventListener('click', () => {
+  // Fase 1: Solicitar credentials
+  const dip = prompt('Introduce tu DIP:');
+  const pwd = prompt('Contraseña:');
+  
+  if (!dip || !pwd) return;
+  
+  fetch(PLACETAID_CONFIG.baseUrl + '/api/auth/fase1', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': PLACETAID_CONFIG.apiKey },
+    body: JSON.stringify({
+      dip,
+      password: pwd,
+      servicio: PLACETAID_CONFIG.serviceName,
+      servicioUrl: window.location.href
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) throw new Error(data.error);
+    
+    // Fase 2: Pedir código 2FA
+    const codigo = prompt('Introduce tu código 2FA:');
+    return fetch(PLACETAID_CONFIG.baseUrl + '/api/auth/fase2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokenFase2: data.tokenFase2, codigo2fa: codigo })
+    });
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) throw new Error(data.error);
+    // Guardar token y datos del usuario
+    localStorage.setItem('placetaidToken', data.tokenSesion);
+    localStorage.setItem('placetaidUser', JSON.stringify(data.registro));
+    console.log('✅ Sesión iniciada:', data.registro);
+    location.reload();
+  })
+  .catch(err => alert('❌ Error: ' + err.message));
+});
+</script>`,
+      implementacion: `
+## Instrucciones de Implementación
+
+### 1. Copiar y pegar el código HTML
+Copia el código anterior en tu página web donde desees el botón de login.
+
+### 2. Configuración
+- **apiKey**: ${solicitante.apiKey} (Proporciona esto a PlacetaID)
+- **baseUrl**: ${baseUrl}
+- **serviceName**: ${solicitante.nombre}
+
+### 3. Validación
+Una vez autenticado, el token estará en \`localStorage.placetaidToken\`.
+Para validar en el servidor:
+
+\`\`\`javascript
+fetch('${baseUrl}/api/solicitante/info', {
+  headers: { 'X-API-Key': '${solicitante.apiKey}' }
+})
+.then(r => r.json())
+.then(data => console.log(data));
+\`\`\`
+
+### 4. Notas
+- El token expira en 15 minutos
+- Se registran todos los intentos de login
+- La API Key debe mantenerse privada (en servidor, no en cliente)
+`
+    };
+
+    res.json(instrucciones);
+  } catch (err) {
+    res.status(500).json({ error: 'Error' });
+  }
+});
+
 // ── SEED ADMIN (solo en desarrollo) ──────────────────────────────────────────
 app.post('/api/setup/seed-admin', async (req, res) => {
   try {
