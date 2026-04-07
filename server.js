@@ -603,20 +603,24 @@ app.get('/favicon.ico', (req, res) => {
   res.status(204).end();
 });
 
-app.get('*', (req, res) => {
+// Catch-all for SPA
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // ── INICIAR SERVIDOR ──────────────────────────────────────────────────────────
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('✅ Conectado a MongoDB');
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+// En desarrollo local, executar: npm start
+if (require.main === module) {
+  mongoose.connect(MONGO_URI)
+    .then(() => {
+      console.log('✅ Conectado a MongoDB');
+      app.listen(PORT, () => {
+        console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+      });
+    })
+    .catch(err => {
+      console.error('❌ Error conectando a MongoDB:', err);
     });
-  })
-  .catch(err => {
-    console.error('❌ Error conectando a MongoDB:', err);
-  });
+}
 
 module.exports = app;
