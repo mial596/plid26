@@ -65,7 +65,7 @@ Body: { dip, password, servicio, servicioUrl }
 
 POST /api/auth/fase2
 Body: { tokenFase2, codigo2fa }
-→ Devuelve: { tokenSesion, registro: { dip, nombre, apellidos, nombreCompleto, edad, rol } }
+→ Devuelve: { tokenSesion, registro: { dip, nombre, apellidos, nombreCompleto, edad, rol, accesoComo, empresaNombre?, propietarios? } }
 ```
 
 ### Registro
@@ -74,6 +74,23 @@ Body: { tokenFase2, codigo2fa }
 POST /api/registro
 Body: { dip, nombre, apellidos, fechaNacimiento, rol, password }
 → Devuelve: { dip, totpSecret, qrCode }
+
+Para empresas:
+```
+POST /api/registro
+Body: {
+  dip,
+  nombre,
+  rol: 'empresa',
+  password,
+  empresaNombre,
+  empresaCIF?,
+  propietarios: [
+    { nombre, apellidos?, placetaId, porcentaje }
+  ]
+}
+→ Devuelve: { dip, totpSecret, qrCode }
+```
 
 POST /api/registro/verificar-totp
 Body: { dip, codigo }

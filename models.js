@@ -11,11 +11,28 @@ const registroSchema = new mongoose.Schema({
     match: /^[A-Z0-9\-]{4,20}$/
   },
   nombre: { type: String, required: true, trim: true },
-  apellidos: { type: String, required: true, trim: true },
-  fechaNacimiento: { type: Date, required: true },
+  apellidos: {
+    type: String,
+    trim: true,
+    required: function () { return this.rol !== 'empresa'; }
+  },
+  fechaNacimiento: {
+    type: Date,
+    required: function () { return this.rol !== 'empresa'; }
+  },
+  empresaNombre: {
+    type: String,
+    trim: true,
+    required: function () { return this.rol === 'empresa'; }
+  },
+  empresaCIF: {
+    type: String,
+    trim: true,
+    uppercase: true
+  },
   rol: {
     type: String,
-    enum: ['administrador', 'miembro', 'entidad', 'visitante', 'moderador'],
+    enum: ['administrador', 'miembro', 'entidad', 'visitante', 'moderador', 'empresa'],
     default: 'miembro'
   },
   passwordHash: { type: String, required: true },
@@ -26,11 +43,38 @@ const registroSchema = new mongoose.Schema({
   ultimoBloqueo: { type: Date },
   activo: { type: Boolean, default: true },
   creadoEn: { type: Date, default: Date.now },
-  ultimoAcceso: { type: Date }
+  ultimoAcceso: { type: Date },
+  propietarios: {
+    type: [
+      {
+        nombre: { type: String, required: true, trim: true },
+        apellidos: { type: String, trim: true },
+        placetaId: { type: String, required: true, uppercase: true, trim: true },
+        porcentaje: { type: Number, min: 0, max: 100, required: true }
+      }
+    ],
+    validate: [
+      {
+        validator: function (v) {
+          if (this.rol !== 'empresa') return true;
+          return Array.isArray(v) && v.length > 0;
+        },
+        message: 'Las empresas deben tener al menos un propietario con porcentaje'
+      },
+      {
+        validator: function (v) {
+          if (this.rol !== 'empresa') return true;
+          return Array.isArray(v) && v.every(p => p.placetaId && typeof p.porcentaje === 'number');
+        },
+        message: 'Cada propietario debe tener placetaId y porcentaje'
+      }
+    ]
+  }
 });
 
 // Calcular edad dinámica
 registroSchema.virtual('edad').get(function () {
+  if (!this.fechaNacimiento) return null;
   const hoy = new Date();
   const nac = new Date(this.fechaNacimiento);
   let edad = hoy.getFullYear() - nac.getFullYear();

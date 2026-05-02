@@ -255,10 +255,16 @@ app.post('/api/auth/fase2', async (req, res) => {
       dip: registro.dip,
       nombre: registro.nombre,
       apellidos: registro.apellidos,
-      nombreCompleto: `${registro.nombre} ${registro.apellidos}`,
+      nombreCompleto: registro.rol === 'empresa' ? registro.empresaNombre : `${registro.nombre} ${registro.apellidos}`,
       edad: registro.edad,
-      rol: registro.rol
+      rol: registro.rol,
+      accesoComo: registro.rol === 'empresa' ? 'empresa' : 'persona'
     };
+
+    if (registro.rol === 'empresa') {
+      datosRegistro.empresaNombre = registro.empresaNombre;
+      datosRegistro.propietarios = registro.propietarios;
+    }
 
     res.json({ ok: true, tokenSesion, registro: datosRegistro, servicio: payload.servicio });
 
@@ -270,9 +276,19 @@ app.post('/api/auth/fase2', async (req, res) => {
 
 // ── API: REGISTRO DE NUEVO USUARIO ─────────────────────────────────────────
 app.post('/api/registro', async (req, res) => {
-  const { dip, nombre, apellidos, fechaNacimiento, rol, password } = req.body;
-  if (!dip || !nombre || !apellidos || !fechaNacimiento || !password) {
-    return res.status(400).json({ error: 'Todos los campos son requeridos' });
+  const { dip, nombre, apellidos, fechaNacimiento, rol, password, empresaNombre, empresaCIF, propietarios } = req.body;
+  if (!dip || !nombre || !password) {
+    return res.status(400).json({ error: 'DIP, nombre y contraseña son requeridos' });
+  }
+
+  if (rol === 'empresa') {
+    if (!empresaNombre || !Array.isArray(propietarios) || propietarios.length === 0) {
+      return res.status(400).json({ error: 'Las empresas deben incluir nombre de la empresa y al menos un propietario con placetaId y porcentaje' });
+    }
+  } else {
+    if (!apellidos || !fechaNacimiento) {
+      return res.status(400).json({ error: 'Apellidos y fecha de nacimiento son requeridos para registros personales' });
+    }
   }
 
   try {
@@ -282,16 +298,30 @@ app.post('/api/registro', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 12);
     const totp = speakeasy.generateSecret({ name: `PlacetaID:${dip.toUpperCase()}`, issuer: 'Grupo de La Placeta', length: 20 });
 
-    const registro = await Registro.create({
+    const registroData = {
       dip: dip.toUpperCase(),
       nombre: nombre.trim(),
-      apellidos: apellidos.trim(),
-      fechaNacimiento: new Date(fechaNacimiento),
       rol: rol || 'miembro',
       passwordHash,
       totpSecret: totp.base32,
       totpVerified: false
-    });
+    };
+
+    if (rol === 'empresa') {
+      registroData.empresaNombre = empresaNombre.trim();
+      if (empresaCIF) registroData.empresaCIF = empresaCIF.trim().toUpperCase();
+      registroData.propietarios = propietarios.map(owner => ({
+        nombre: owner.nombre?.trim() || '',
+        apellidos: owner.apellidos?.trim(),
+        placetaId: owner.placetaId?.toUpperCase().trim(),
+        porcentaje: owner.porcentaje
+      }));
+    } else {
+      registroData.apellidos = apellidos.trim();
+      registroData.fechaNacimiento = new Date(fechaNacimiento);
+    }
+
+    const registro = await Registro.create(registroData);
 
     await registrarLog({ dip: registro.dip, registroId: registro._id, servicio: 'PlacetaID', evento: 'registro_creado', ip: getIP(req), ua: req.headers['user-agent'], fase: 'completa' });
 
